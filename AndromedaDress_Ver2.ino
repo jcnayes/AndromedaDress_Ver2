@@ -111,7 +111,9 @@ void loop() {
     
   } else {
     
-    colorAllStars(); // standard star colors, no/low motion detected
+//    colorAllStars(); // standard star colors, no/low motion detected
+    
+    colorSomeStars(random(4)); // standard star colors, no/low motion detected, only update a few stars at a time
     
 //   flashRandom(1);
 //   delay(mySpeed); 
@@ -148,6 +150,26 @@ void colorAllStars() {
   
   for (int pos = 0; pos < arraySize_max; pos ++) {
     setScienceColor(pos, pos, pos);
+  }
+  
+  strip1.show();
+  strip2.show();
+  strip3.show();
+}
+
+
+// Change the color of up to (howmany) number of stars/pixels, science colors
+// Same number of pixels lit up on each star string
+void colorSomeStars(uint8_t howmany) {
+  
+  for(uint16_t i=0; i<howmany; i++) {
+    
+    // get a random pixel from the list
+    int j_1 = random(strip1.numPixels());
+    int j_2 = random(strip2.numPixels());
+    int j_3 = random(strip3.numPixels());
+
+    setScienceColor(j_1, j_2, j_3);
   }
   
   strip1.show();
