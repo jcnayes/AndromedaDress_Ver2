@@ -2,8 +2,14 @@
 //
 // Program to control the 16 main 'stars' (NeoPixels) of the Andromeda constellation, 
 // sewn onto a black dress.
+//
+// 2016-08: Added LSM303DLHC accelerometer functionality
+
 
 #include <Adafruit_NeoPixel.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM303_U.h>
 
 // User-defined parameters //////////////////////////////////////////
 // LED output pin on Flora
@@ -11,12 +17,12 @@
 #define PIN_strip2 6   // 2nd "line" of stars
 #define PIN_strip3 10  // 3rd "line" of stars
 
-// number of NeoPixels to control
+// number of NeoPixels to control- Changing the amount of stars in each line? Update the cases in colorStars()
 #define starCount_strip1 5    // 1st "line" of stars
 #define starCount_strip2 8    // 2nd "line" of stars
 #define starCount_strip3 3    // 3rd "line" of stars
 
-#define mySpeed 1000  // speed for color changes
+#define mySpeed 10  // speed for color changes
 
 // Star color sets
 uint32_t cReds[] = {0xFF0000, 0xFF6666, 0x990000, 0x660000, 0xFF3300}; // reds
@@ -32,27 +38,94 @@ Adafruit_NeoPixel strip1 = Adafruit_NeoPixel(starCount_strip1, PIN_strip1, NEO_G
 Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(starCount_strip2, PIN_strip2, NEO_GRB + NEO_KHZ800); // 2nd "line" of stars
 Adafruit_NeoPixel strip3 = Adafruit_NeoPixel(starCount_strip3, PIN_strip3, NEO_GRB + NEO_KHZ800); // 3rd "line" of stars
 
+//Set up accelerometer, assign a unique ID to this sensor at the same time
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(1337);
+double vector1, vector2;
+sensors_event_t event, event2;
 
+// Change this number to adjust TWINklitude :)
+// lower number = more sensitive
+#define MOVE_THRESHOLD 1
 
 void setup() {
+  
+  Serial.begin(9600);
+  
+  // Try to initialise and warn if we couldn't detect the chip
+  if (!accel.begin())
+  {
+    Serial.println("Oops ... unable to initialize the LSM303. Check your wiring!");
+    while (1);
+  }
+
   strip1.begin();
-  strip1.setBrightness(20); // 1/3 brightness to save battery
-  strip1.show();            // Initialize all pixels to 'off'
   strip2.begin();
-  strip2.setBrightness(20); // 1/3 brightness to save battery
-  strip2.show();            // Initialize all pixels to 'off'
   strip3.begin();
-  strip3.setBrightness(20); // 1/3 brightness to save battery
-  strip3.show();            // Initialize all pixels to 'off'
+  strip1.setBrightness(20);  // 1/3 brightness to save battery
+  strip2.setBrightness(20);
+  strip3.setBrightness(20);
+  lightsOut();               // Initialize all pixels to 'off'
 
 }
 
 void loop() {
-  colorStars(mySpeed);
+  /* Get a new sensor event */ 
+  sensors_event_t event;
+  accel.getEvent(&event);
+  vector1 = getVectorMagnitude(event);
+  Serial.print("Len: "); Serial.println(vector1);
   
+  // wait a bit
+  delay(50);
+  
+  // get new data!
+  accel.getEvent(&event);
+  vector2 = getVectorMagnitude(event);
+  Serial.print("New Len: "); Serial.println(vector2);
+
+  // are we moving?
+  if (abs(vector2 - vector1) > MOVE_THRESHOLD) {
+    Serial.print("Twinkle! (Vector diff = ") + Serial.println(abs(vector2 - vector1));
+    int tempTwink = 0;
+    strip1.setBrightness(40);
+    strip2.setBrightness(40);
+    strip3.setBrightness(40);
+    
+    while(tempTwink < 10){
+      
+      Twinkle(100);
+      tempTwink++;
+    }
+    
+    strip1.setBrightness(20);
+    strip2.setBrightness(20);
+    strip3.setBrightness(20);
+    Serial.println("Twinkle done");
+    
+  } else {
+    
+    colorStars(mySpeed);
+//   flashRandom(mySpeed, 1);
+//   flashRandom(mySpeed, 3);
+//   flashRandom(mySpeed, 2);
+//   flashRandom(mySpeed, 4);
+  }
 }
 
 
+
+
+// Get the magnitude (length) of the 3 axis vector
+//   http://en.wikipedia.org/wiki/Euclidean_vector#Length
+double getVectorMagnitude(sensors_event_t event) {
+  
+  double newVector = event.acceleration.x*event.acceleration.x;
+  newVector += event.acceleration.y*event.acceleration.y;
+  newVector += event.acceleration.z*event.acceleration.z;
+  newVector = sqrt(newVector);
+  
+  return newVector;
+}
 
 
 // Change the color of each star/pixel, cycling through its color list/array
@@ -62,7 +135,7 @@ void colorStars(int wait) {
   int whichColor;
   uint32_t color;
   
-  // Strip 1
+  // Strip 1: 5 pixels
   for (int pos = 0; pos < starCount_strip1; pos ++) {
     switch (pos) {    
       // white
@@ -105,7 +178,7 @@ void colorStars(int wait) {
   } // end Strip1
  
  
-  // Strip 2
+  // Strip 2: 8 pixels
   for (int pos = 0; pos < starCount_strip2; pos ++) {
     switch (pos) {  
       // red
@@ -158,7 +231,7 @@ void colorStars(int wait) {
   } // end Strip2
  
  
-  // Strip 3
+  // Strip 3: 3 pixels
   for (int pos = 0; pos < starCount_strip3; pos ++) {
     switch (pos) {    
       // BlueWhite  
@@ -195,6 +268,103 @@ void colorStars(int wait) {
   strip1.show();
   strip2.show();
   strip3.show();
-  delay(wait);
+  delay(wait); 
+}
+
+// 'Twinkle' each star/pixel, cycling through the cWhites color list/array
+void Twinkle(int wait) {
   
+  int arraySize;
+  int whichColor;
+  uint32_t color;
+  
+  // Strip 1: 5 pixels
+  for (int pos = 0; pos < starCount_strip1; pos ++) {
+    
+    // all stars in whites
+    arraySize = sizeof(cWhites)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+    whichColor = random(arraySize);
+    color = cWhites[whichColor]; // get random color from color array      
+    strip1.setPixelColor(pos, color);
+  }
+ 
+ 
+  // Strip 2: 8 pixels
+  for (int pos = 0; pos < starCount_strip2; pos ++) {
+    
+    // all stars in whites
+    arraySize = sizeof(cWhites)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+    whichColor = random(arraySize);
+    color = cWhites[whichColor]; // get random color from color array      
+    strip2.setPixelColor(pos, color);
+  }
+ 
+ 
+  // Strip 3: 3 pixels
+  for (int pos = 0; pos < starCount_strip3; pos ++) {
+    
+    // all stars in whites
+    arraySize = sizeof(cWhites)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+    whichColor = random(arraySize);
+    color = cWhites[whichColor]; // get random color from color array      
+    strip3.setPixelColor(pos, color);
+  }
+ 
+  
+  strip1.show();
+  strip2.show();
+  strip3.show();
+//  delay(wait); 
+}
+
+
+// Flash (howmany) number of pixels, randomly, same number of pixels lit up on each star string
+void flashRandom(int wait, uint8_t howmany) {
+  
+  int arraySize;
+  int whichColor;
+  uint32_t color;
+  
+  lightsOut();
+  
+  for(uint16_t i=0; i<howmany; i++) {
+    // pick a random color out of array
+    arraySize = sizeof(cReds)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+    whichColor = random(arraySize);
+    color = cReds[whichColor]; // get random color from color array
+    
+    // get a random pixel from the list
+    int j_1 = random(strip1.numPixels());
+    int j_2 = random(strip2.numPixels());
+    int j_3 = random(strip3.numPixels());
+      
+    strip1.setPixelColor(j_1, color);
+    strip2.setPixelColor(j_2, color);
+    strip3.setPixelColor(j_3, color);
+
+    strip1.show();
+    strip2.show();
+    strip3.show();
+//    delay(wait);
+  }
+}
+
+
+// Clear each star/pixel
+void lightsOut() {
+  
+  int arraySize_max;
+  uint32_t color = 0; // no color
+
+  arraySize_max = max((starCount_strip1,starCount_strip2),starCount_strip3);
+  
+  for (int pos = 0; pos < arraySize_max; pos ++) {
+        strip1.setPixelColor(pos, color);
+        strip2.setPixelColor(pos, color);
+        strip3.setPixelColor(pos, color);
+  }
+  
+  strip1.show();
+  strip2.show();
+  strip3.show();
 }
