@@ -4,6 +4,7 @@
 // sewn onto a black dress.
 //
 // 2016-08: Added LSM303DLHC accelerometer functionality
+// 2018-04: New twinkle settings
 
 
 #include <Adafruit_NeoPixel.h>
@@ -68,12 +69,16 @@ void setup() {
 
 }
 
+
 void loop() {
+  // Normally, the stars will twinkle according to the set star colors.
+  // If motion is detected, the stars will twinkle at a higher brightness.
+  
   /* Get a new sensor event */ 
   sensors_event_t event;
   accel.getEvent(&event);
   vector1 = getVectorMagnitude(event);
-  Serial.print("Len: "); Serial.println(vector1);
+  Serial.print("Length: "); Serial.println(vector1);
   
   // wait a bit
   delay(50);
@@ -81,19 +86,21 @@ void loop() {
   // get new data!
   accel.getEvent(&event);
   vector2 = getVectorMagnitude(event);
-  Serial.print("New Len: "); Serial.println(vector2);
+  Serial.print("New Length: "); Serial.println(vector2);
 
   // are we moving?
   if (abs(vector2 - vector1) > MOVE_THRESHOLD) {
+    
     Serial.print("Twinkle! (Vector diff = ") + Serial.println(abs(vector2 - vector1));
-    int tempTwink = 0;
     strip1.setBrightness(40);
     strip2.setBrightness(40);
     strip3.setBrightness(40);
     
-    while(tempTwink < 10){
+    int tempTwink = 0;
+    while(tempTwink < 10) {
       
-      Twinkle(100);
+      Twinkle();
+      delay(100);
       tempTwink++;
     }
     
@@ -104,15 +111,21 @@ void loop() {
     
   } else {
     
-    colorStars(mySpeed);
-//   flashRandom(mySpeed, 1);
-//   flashRandom(mySpeed, 3);
-//   flashRandom(mySpeed, 2);
-//   flashRandom(mySpeed, 4);
+    colorAllStars(); // standard star colors, no/low motion detected
+    
+//   flashRandom(1);
+//   delay(mySpeed); 
+//   flashRandom(3);
+//   delay(mySpeed); 
+//   flashRandom(2);
+//   delay(mySpeed); 
+//   flashRandom(4);
+//   delay(mySpeed); 
   }
 }
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Get the magnitude (length) of the 3 axis vector
@@ -128,22 +141,37 @@ double getVectorMagnitude(sensors_event_t event) {
 }
 
 
-// Change the color of each star/pixel, cycling through its color list/array
-void colorStars(int wait) {
+// Change the color of each star/pixel, science colors
+void colorAllStars() {
+  
+  int arraySize_max = max((starCount_strip1,starCount_strip2),starCount_strip3);
+  
+  for (int pos = 0; pos < arraySize_max; pos ++) {
+    setScienceColor(pos, pos, pos);
+  }
+  
+  strip1.show();
+  strip2.show();
+  strip3.show();
+}
+
+
+// Change the color of a specific star/pixel, randomly picked from its color array
+// (Max out position to make no changes to a string).
+// Does not light up pixels.
+void setScienceColor(int posS1, int posS2, int posS3) {
   
   int arraySize;
   int whichColor;
   uint32_t color;
   
   // Strip 1: 5 pixels
-  for (int pos = 0; pos < starCount_strip1; pos ++) {
-    switch (pos) {    
+    switch (posS1) {    
       // white
       case 0:  // case # is star pos 0, 1, etc
         arraySize = sizeof(cWhites)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
         whichColor = random(arraySize);
-        color = cWhites[whichColor]; // get random color from color array      
-        strip1.setPixelColor(pos, color);
+        color = cWhites[whichColor]; // get random color from color array
         break;
       
       // BlueWhite  
@@ -152,7 +180,6 @@ void colorStars(int wait) {
         arraySize = sizeof(cBlueWhite)/4;
         whichColor = random(arraySize);
         color = cBlueWhite[whichColor];
-        strip1.setPixelColor(pos, color);
         break;
       
       // yellow  
@@ -160,7 +187,6 @@ void colorStars(int wait) {
         arraySize = sizeof(cYellows)/4;
         whichColor = random(arraySize);
         color = cYellows[whichColor];
-        strip1.setPixelColor(pos, color);
         break;
       
       // orange-yellow-blue-green  
@@ -168,33 +194,30 @@ void colorStars(int wait) {
         arraySize = sizeof(cOrYlBlGr)/4;
         whichColor = random(arraySize);
         color = cOrYlBlGr[whichColor];
-        strip1.setPixelColor(pos, color);
         break;
         
       default: // be sure to have all position cases called out, or uses a default color
-        strip1.setPixelColor(pos, cDefault);
+        color = cDefault;
       break;  
-    }
-  } // end Strip1
+    } 
+    strip1.setPixelColor(posS1, color);
+    // end Strip1
  
  
   // Strip 2: 8 pixels
-  for (int pos = 0; pos < starCount_strip2; pos ++) {
-    switch (pos) {  
+    switch (posS2) {  
       // red
       case 0:  // case # is star pos 0, 1, etc
-        arraySize = sizeof(cReds)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+        arraySize = sizeof(cReds)/4;
         whichColor = random(arraySize);
-        color = cReds[whichColor]; // get random color from color array      
-        strip2.setPixelColor(pos, color);
+        color = cReds[whichColor];
         break;
         
       // white
       case 5:  // case # is star pos 0, 1, etc
-        arraySize = sizeof(cWhites)/4; // divide by 4 b/c size returned in bytes + array values are in bytes
+        arraySize = sizeof(cWhites)/4;
         whichColor = random(arraySize);
-        color = cWhites[whichColor]; // get random color from color array      
-        strip2.setPixelColor(pos, color);
+        color = cWhites[whichColor];
         break;
       
       // BlueWhite  
@@ -204,7 +227,6 @@ void colorStars(int wait) {
         arraySize = sizeof(cBlueWhite)/4;
         whichColor = random(arraySize);
         color = cBlueWhite[whichColor];
-        strip2.setPixelColor(pos, color);
         break;
       
       // yellow  
@@ -212,7 +234,6 @@ void colorStars(int wait) {
         arraySize = sizeof(cYellows)/4;
         whichColor = random(arraySize);
         color = cYellows[whichColor];
-        strip2.setPixelColor(pos, color);
         break;
       
       // orange 
@@ -221,25 +242,23 @@ void colorStars(int wait) {
       arraySize = sizeof(cOranges)/4;
         whichColor = random(arraySize);
         color = cOranges[whichColor];
-        strip2.setPixelColor(pos, color);
         break;
         
       default: // be sure to have all position cases called out, or uses a default color
-        strip1.setPixelColor(pos, cDefault);
+        color = cDefault;
       break;  
     }
-  } // end Strip2
+    strip2.setPixelColor(posS2, color);
+  // end Strip2
  
  
   // Strip 3: 3 pixels
-  for (int pos = 0; pos < starCount_strip3; pos ++) {
-    switch (pos) {    
+    switch (posS3) {    
       // BlueWhite  
       case 0:  // case # is star pos 0, 1, etc
         arraySize = sizeof(cBlueWhite)/4;
         whichColor = random(arraySize);
         color = cBlueWhite[whichColor];
-        strip3.setPixelColor(pos, color);
         break;
       
       // orange  
@@ -247,7 +266,6 @@ void colorStars(int wait) {
         arraySize = sizeof(cOranges)/4;
         whichColor = random(arraySize);
         color = cOranges[whichColor];
-        strip3.setPixelColor(pos, color);
         break;
       
       // yellow  
@@ -255,24 +273,19 @@ void colorStars(int wait) {
         arraySize = sizeof(cYellows)/4;
         whichColor = random(arraySize);
         color = cYellows[whichColor];
-        strip3.setPixelColor(pos, color);
         break;
         
       default: // be sure to have all position cases called out, or uses a default color
-        strip3.setPixelColor(pos, cDefault);
+        color = cDefault;
       break;  
     }
-  } // end Strip3
- 
-  
-  strip1.show();
-  strip2.show();
-  strip3.show();
-  delay(wait); 
+    strip3.setPixelColor(posS3, color);
+    // end Strip3
 }
 
-// 'Twinkle' each star/pixel, cycling through the cWhites color list/array
-void Twinkle(int wait) {
+
+// 'Twinkle' each star/pixel, by random selection from the cWhites color array
+void Twinkle() {
   
   int arraySize;
   int whichColor;
@@ -288,7 +301,6 @@ void Twinkle(int wait) {
     strip1.setPixelColor(pos, color);
   }
  
- 
   // Strip 2: 8 pixels
   for (int pos = 0; pos < starCount_strip2; pos ++) {
     
@@ -298,7 +310,6 @@ void Twinkle(int wait) {
     color = cWhites[whichColor]; // get random color from color array      
     strip2.setPixelColor(pos, color);
   }
- 
  
   // Strip 3: 3 pixels
   for (int pos = 0; pos < starCount_strip3; pos ++) {
@@ -310,16 +321,14 @@ void Twinkle(int wait) {
     strip3.setPixelColor(pos, color);
   }
  
-  
   strip1.show();
   strip2.show();
   strip3.show();
-//  delay(wait); 
 }
 
 
 // Flash (howmany) number of pixels, randomly, same number of pixels lit up on each star string
-void flashRandom(int wait, uint8_t howmany) {
+void flashRandom(uint8_t howmany) {
   
   int arraySize;
   int whichColor;
@@ -345,7 +354,6 @@ void flashRandom(int wait, uint8_t howmany) {
     strip1.show();
     strip2.show();
     strip3.show();
-//    delay(wait);
   }
 }
 
